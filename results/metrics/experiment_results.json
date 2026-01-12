@@ -1,0 +1,9 @@
+{
+    "true_positives": 9,
+    "false_positives": 4,
+    "false_negatives": 0,
+    "precision": 0.6923,
+    "recall": 1.0,
+    "f1_score": 0.8182,
+    "communication_messages": 180
+}

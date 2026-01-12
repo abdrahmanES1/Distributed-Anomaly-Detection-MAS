@@ -14,8 +14,8 @@ class SensorAgent(BaseAgent):
         self.coordination = CoordinationBehavior()
         self.add_behaviour(self.coordination)
         
-        self.logger.info("SensorAgent setup complete.")
+        self.log_info("SensorAgent setup complete.")
 
     def set_neighbors(self, neighbor_jids):
         self.neighbors = neighbor_jids
-        self.logger.info(f"Neighbors set: {self.neighbors}")
+        self.log_info(f"Neighbors set: {self.neighbors}")

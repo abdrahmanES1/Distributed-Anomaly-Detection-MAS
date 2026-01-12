@@ -6,9 +6,9 @@ class CoordinatorAgent(BaseAgent):
         async def run(self):
             msg = await self.receive(timeout=10)
             if msg:
-                print(f"[Coordinator] Received: {msg.body} from {msg.sender}")
+                self.agent.log_info(f"Received alert from {msg.sender}", event_type="alert_received", alert=msg.body)
 
     async def setup(self):
         await super().setup()
         self.add_behaviour(self.ListenBehavior())
-        self.logger.info("CoordinatorAgent setup complete.")
+        self.log_info("CoordinatorAgent setup complete.")

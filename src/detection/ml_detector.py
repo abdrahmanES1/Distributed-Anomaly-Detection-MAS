@@ -2,11 +2,11 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 
 class MLDetector:
-    def __init__(self, contamination=0.1):
+    def __init__(self, contamination=0.02):
         self.model = IsolationForest(contamination=contamination, random_state=42)
         self.training_data = []
         self.is_trained = False
-        self.buffer_size = 50 # Number of points to collect before training
+        self.buffer_size = 100 # Number of points to collect before training
 
     def update(self, value):
         # normalize value to 2D array for sklearn
