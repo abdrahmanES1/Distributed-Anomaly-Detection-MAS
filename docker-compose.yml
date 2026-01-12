@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  prosody:
+    build: ./docker/prosody
+    ports:
+      - "5222:5222"
+      - "5269:5269"
+      - "5280:5280"
+    networks:
+      - mas_network
+    volumes:
+      - ./results/logs:/var/log/prosody
+
+  agent_runner:
+    build: ./docker/agent
+    volumes:
+      - .:/app
+    environment:
+      - XMPP_SERVER=prosody
+      - PYTHONPATH=/app
+    networks:
+      - mas_network
+    depends_on:
+      - prosody
+    working_dir: /app
+    command: tail -f /dev/null
+
+networks:
+  mas_network:
+    driver: bridge
