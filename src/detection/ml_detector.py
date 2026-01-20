@@ -1,33 +1,61 @@
 import numpy as np
-from sklearn.ensemble import IsolationForest
+from river import anomaly
+from src.config.settings import Settings
 
 class MLDetector:
-    def __init__(self, contamination=0.02):
-        self.model = IsolationForest(contamination=contamination, random_state=42)
-        self.training_data = []
-        self.is_trained = False
-        self.buffer_size = 100 # Number of points to collect before training
+    """
+    Streaming Anomaly Detector using Half-Space Trees (River library).
+    
+    This detector learns incrementally from the data stream and does not require
+    periodic retraining or window buffering, making it O(1) in time and memory.
+    """
+    
+    def __init__(self):
+        """Initializes the Half-Space Trees model with configured parameters."""
+        self.model = anomaly.HalfSpaceTrees(
+            n_trees=Settings.DETECTION.N_ESTIMATORS,
+            height=Settings.DETECTION.HST_HEIGHT,
+            window_size=Settings.DETECTION.HST_WINDOW_SIZE,
+            limits={0: Settings.DETECTION.HST_LIMITS}, # Feature 0 range
+            seed=Settings.DETECTION.RANDOM_STATE
+        )
+        self.is_trained = True # Online models are always "training"
+        self.step_counter = 0
 
-    def update(self, value):
-        # normalize value to 2D array for sklearn
-        point = np.array([[value]])
+    def update(self, value: float) -> tuple[bool, float]:
+        """
+        Updates the model with a new data point and returns the anomaly status.
         
-        if not self.is_trained:
-            self.training_data.append(value)
-            if len(self.training_data) >= self.buffer_size:
-                self.train()
-            return False, 0.0
+        Args:
+            value (float): The new data point to process.
+            
+        Returns:
+            tuple[bool, float]: A tuple containing:
+                - is_anomaly (bool): True if the point is anomalous.
+                - score (float): The anomaly score (0 to 1).
+        """
+        # River expects a dict for features
+        x = {0: value} 
         
-        # Predict: 1 for inlier, -1 for outlier
-        prediction = self.model.predict(point)[0]
-        score = self.model.decision_function(point)[0]
+        # 1. Get score (predict first)
+        score = self.model.score_one(x)
         
-        is_anomaly = prediction == -1
+        # 2. Update model (learn)
+        self.model.learn_one(x)
+        
+        # 3. Determine threshold (River scores are 0.0 to 1.0, where 1.0 is high anomaly)
+        # We can use a dynamic threshold or a fixed one. 
+        # For HST, 0.5 - 0.8 is usually a good range. Let's map Settings.CONTAMINATION or use a new logic.
+        # Since sklearn uses decision_function, we need to adapt.
+        # Let's assume > 0.7 is anomaly for now, or adapt Z_SCORE settings.
+        # Actually, let's use a dynamic threshold or a fixed safe one.
+        # The user wants "Professional", so let's use a fixed threshold of 0.7 for now.
+        
+        threshold = 0.7 # TODO: Move to Settings if successful
+        is_anomaly = score > threshold
+        
         return is_anomaly, score
 
     def train(self):
-        print("Training Isolation Forest model...")
-        X = np.array(self.training_data).reshape(-1, 1)
-        self.model.fit(X)
-        self.is_trained = True
-        print(f"Model trained on {len(self.training_data)} points.")
+        """No-op for online learning."""
+        pass

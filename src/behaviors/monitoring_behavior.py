@@ -3,6 +3,7 @@ import time
 from spade.behaviour import CyclicBehaviour
 from src.data.generator import DataGenerator
 from src.detection.ml_detector import MLDetector
+from src.config.settings import Settings
 
 class MonitoringBehavior(CyclicBehaviour):
     async def on_start(self):
@@ -16,9 +17,9 @@ class MonitoringBehavior(CyclicBehaviour):
         # Generate data
         # Periodic Time-based injection every 30s
         current_time = time.time()
-        if (current_time - self.last_injection_time) > 30.0:
-            data_point = self.generator.inject_anomaly(magnitude=100.0)
-            self.agent.log_info(f"💉 INJECTING ANOMALY: {data_point:.2f}", event_type="injection", magnitude=100.0, value=data_point)
+        if (current_time - self.last_injection_time) > Settings.DATA.INJECTION_INTERVAL:
+            data_point = self.generator.inject_anomaly(magnitude=Settings.DATA.INJECTION_MAGNITUDE)
+            self.agent.log_info(f"💉 INJECTING ANOMALY: {data_point:.2f}", event_type="injection", magnitude=Settings.DATA.INJECTION_MAGNITUDE, value=data_point)
             self.last_injection_time = current_time
         else:
             data_point = self.generator.next()
