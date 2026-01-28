@@ -1,33 +1,56 @@
-import numpy as np
-from sklearn.ensemble import IsolationForest
+import logging
+from river import anomaly
+from river import compose
+from river import preprocessing
 
 class MLDetector:
-    def __init__(self, contamination=0.02):
-        self.model = IsolationForest(contamination=contamination, random_state=42)
-        self.training_data = []
+    def __init__(self):
+        # 3-Stage Pipeline:
+        # 1. StandardScaler: Normalizes data (Z-score) online so trees work on stable range.
+        # 2. HalfSpaceTrees: The actual anomaly detection forest.
+        # Tuned parameters:
+        # - n_trees: 10 (Lightweight)
+        # - height: 6 (Prevent recursion)
+        # - window_size: 250
+        self.model = compose.Pipeline(
+            preprocessing.StandardScaler(),
+            anomaly.HalfSpaceTrees(
+                n_trees=10,
+                height=6,
+                window_size=250,
+                seed=42
+            )
+        )
+        self.learning_period = 50 
+        self.counter = 0
         self.is_trained = False
-        self.buffer_size = 100 # Number of points to collect before training
 
     def update(self, value):
-        # normalize value to 2D array for sklearn
-        point = np.array([[value]])
+        """
+        Update the model with a new value and return likely anomaly status.
+        Args:
+            value (float): The new data point.
+        Returns:
+            tuple: (is_anomaly (bool), score (float))
+        """
+        # Pipeline expects dictionary
+        record = {'val': value}
         
-        if not self.is_trained:
-            self.training_data.append(value)
-            if len(self.training_data) >= self.buffer_size:
-                self.train()
+        # 1. Score (Pipeline propagates dict -> Scaler -> HST)
+        score = self.model.score_one(record)
+        
+        # 2. Learn
+        self.model.learn_one(record)
+        
+        self.counter += 1
+        
+        # Warm-up period
+        if self.counter < self.learning_period:
             return False, 0.0
-        
-        # Predict: 1 for inlier, -1 for outlier
-        prediction = self.model.predict(point)[0]
-        score = self.model.decision_function(point)[0]
-        
-        is_anomaly = prediction == -1
-        return is_anomaly, score
-
-    def train(self):
-        print("Training Isolation Forest model...")
-        X = np.array(self.training_data).reshape(-1, 1)
-        self.model.fit(X)
+            
         self.is_trained = True
-        print(f"Model trained on {len(self.training_data)} points.")
+        
+        # HST score is 0.0 to 1.0.
+        is_anomaly = score > 0.7
+        
+        return is_anomaly, score

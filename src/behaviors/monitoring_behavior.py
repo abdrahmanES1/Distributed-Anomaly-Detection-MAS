@@ -29,7 +29,7 @@ class MonitoringBehavior(CyclicBehaviour):
         if not self.detector.is_trained:
              # Still training, just log occasionally
              if self.generator.current_step % 10 == 0:
-                 self.agent.log_info("Training model...", progress=f"{len(self.detector.training_data)}/{self.detector.buffer_size}")
+                 self.agent.log_info(f"Warming up model... {self.detector.counter}/{self.detector.learning_period}")
         
         elif self.is_anomaly:
             self.last_anomaly_time = time.time()
