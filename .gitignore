@@ -35,3 +35,9 @@ docker-compose.override.yml
 # IDEs
 .vscode/
 .idea/
+
+# Project Logs & Jobs
+results/logs/*.jsonl
+results/logs/*.jsonl.*
+jobs/request.json
+graph.html

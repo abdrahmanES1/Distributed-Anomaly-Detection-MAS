@@ -26,6 +26,16 @@ services:
     working_dir: /app
     command: tail -f /dev/null
 
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./results/logs:/app/results/logs:ro
+      - ./jobs:/app/jobs:rw # Write access for job requests
+    networks:
+      - mas_network
+
 networks:
   mas_network:
     driver: bridge

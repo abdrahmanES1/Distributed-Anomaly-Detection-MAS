@@ -13,6 +13,11 @@ class SensorAgent(BaseAgent):
         # Add Coordination Behavior
         self.coordination = CoordinationBehavior()
         self.add_behaviour(self.coordination)
+
+        # Add Healing Behavior (Self-Repair)
+        from src.behaviors.healing_behavior import HealingBehavior
+        self.healing = HealingBehavior()
+        self.add_behaviour(self.healing)
         
         self.log_info("SensorAgent setup complete.")
 
