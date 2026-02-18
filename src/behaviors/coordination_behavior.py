@@ -27,14 +27,18 @@ class VoteSession:
 
 class CoordinationBehavior(CyclicBehaviour):
     """
-    Manages agent coordination, including voting sessions, trust scores, and dynamic topology.
+    Manages how this agent works with others.
+    
+    Responsibilities:
+    1. Organize voting when an anomaly is found.
+    2. Track who we trust (and who we don't).
+    3. Maintain network connections (monitor neighbors).
     
     Attributes:
-        active_sessions (Dict[str, VoteSession]): Currently active voting sessions.
-        my_session_id (str): The ID of the session initiated by this agent (if any).
-        trust_scores (Dict[str, float]): Trust levels for neighbor agents.
-        last_seen (Dict[str, float]): Timestamp of last contact with each neighbor.
-        last_heartbeat (float): Timestamp of last heartbeat sent.
+        active_sessions: ongoing votes we know about.
+        my_session_id: the vote WE started (if any).
+        trust_scores: how much we trust each neighbor (0.0 to 1.0).
+        last_seen: when we last heard from a neighbor.
     """
     
     async def on_start(self):
@@ -53,12 +57,10 @@ class CoordinationBehavior(CyclicBehaviour):
 
     async def start_voting(self) -> int:
         """
-        Initiates a new voting session for a detected anomaly.
-        
-        Returns:
-            int: Number of neighbors queried.
+        Calculates how many neighbors to ask for a vote.
+        Triggered when we detect an anomaly locally.
         """
-        # 1. Create Session
+        # 1. Start a new voting session
         session_id = str(uuid.uuid4())
         self.my_session_id = session_id
         
@@ -73,8 +75,9 @@ class CoordinationBehavior(CyclicBehaviour):
         
         self.agent.log_info(f"🗳️ Starting voting session {session_id[:8]}...", event_type="voting_start")
         
-        # 2. Send Queries
+        # 2. Ask all neighbors: "Do you see this too?"
         for neighbor in neighbors:
+            # Initialize trust if new neighbor
             if neighbor not in self.trust_scores:
                 self.trust_scores[neighbor] = Settings.COORDINATION.INITIAL_TRUST
                 
@@ -133,57 +136,52 @@ class CoordinationBehavior(CyclicBehaviour):
                 await self.send(msg)
 
     def _prune_dead_neighbors(self, now: float):
-        """Removes neighbors that haven't responded within timeout."""
+        """Removes neighbors who stopped responding (Timeouts)."""
         neighbors = getattr(self.agent, 'neighbors', [])
         dead = []
         for n in neighbors:
             last = self.last_seen.get(n, now) 
+            # If silence > timeout, mark as dead
             if now - last > Settings.COORDINATION.HEARTBEAT_TIMEOUT:
                 dead.append(n)
         
         for d in dead:
-            self.agent.log_info(f"💀 Neighbor {d} is DEAD (Timeout). Removing.", event_type="prune", target=d)
+            self.agent.log_info(f"💀 Neighbor {d} died (Timeout). Removing.", event_type="prune", target=d)
             self._sever_connection(d) 
             if d in self.last_seen:
                 del self.last_seen[d]
 
     async def handle_query(self, msg: Message, payload: object):
         """
-        Respond to a neighbor's query based on local detection state.
-        
-        Args:
-            msg (Message): The received query message.
-            payload (CoordinationMessage): The decoded payload.
+        Another agent asked: "Is this an anomaly?"
+        We check our own recent history to answer.
         """
         is_anomaly = False
         if hasattr(self.agent, 'monitoring'):
+             # Did we see an anomaly recently? (e.g., last 3 seconds)
              last_time = getattr(self.agent.monitoring, 'last_anomaly_time', 0)
              if (time.time() - last_time) < Settings.COORDINATION.ANOMALY_WINDOW_SECONDS:
                  is_anomaly = True
         
+        # Determine our vote
         response_content = "AGREE" if is_anomaly else "DISAGREE"
         
-        # Trust Logic (Penalize False Alarms)
+        # Trust Logic: If they are wrong (False Alarm), we trust them less.
         if not is_anomaly:
              sender = str(msg.sender)
              self._update_trust(sender, -Settings.COORDINATION.TRUST_PENALTY)
              
-             # Check for severance
+             # If trust drops too low, cut them off!
              if self.trust_scores.get(sender, 0.5) < Settings.COORDINATION.SEVER_CONNECTION_THRESHOLD:
                  self._sever_connection(sender)
-                 # We assume we shouldn't respond if we sever? 
-                 # Or respond DISAGREE then cut. Let's send reply for protocol completeness.
         
         reply = create_reply_message(msg, payload.session_id, response_content)
         await self.send(reply)
 
     async def handle_vote(self, msg: Message, payload: object):
         """
-        Process incoming vote for the current active session.
-        
-        Args:
-            msg (Message): The received vote message.
-            payload (CoordinationMessage): The decoded payload.
+        Received a vote ("AGREE" or "DISAGREE") from a neighbor.
+        Only processes votes for sessions WE started.
         """
         session_id = payload.session_id
         
@@ -205,28 +203,31 @@ class CoordinationBehavior(CyclicBehaviour):
             
         if vote == "AGREE":
             session.agreements += 1
+            # They agreed with us -> Trust increases
             self._update_trust(sender, Settings.COORDINATION.TRUST_REWARD)
             
+            # If trusted neighbor agrees, we confirm the anomaly!
             if trust > Settings.COORDINATION.CONFIRMATION_THRESHOLD:
-                self.agent.log_info(f"✅ CONFIRMED global anomaly via {sender}!", event_type="consensus_reached", peer=sender)
+                self.agent.log_info(f"✅ CONFIRMATION: {sender} agrees!", event_type="consensus_reached", peer=sender)
                 session.is_active = False 
         else:
             session.disagreements += 1
 
     def _update_trust(self, peer: str, delta: float):
-        """Updates internal trust score for a peer, clamped between min and max."""
+        """Adjusts trust score securely (clamps between 0.0 and 1.0)."""
         if peer not in self.trust_scores:
             self.trust_scores[peer] = Settings.COORDINATION.INITIAL_TRUST
         
         new_score = self.trust_scores[peer] + delta
+        # Ensure score stays within bounds [Min, Max]
         self.trust_scores[peer] = max(
             Settings.COORDINATION.MIN_TRUST_THRESHOLD, 
             min(Settings.COORDINATION.MAX_TRUST_THRESHOLD, new_score)
         )
 
     def _sever_connection(self, peer: str):
-        """Removes a peer from the neighbor list and trust scores."""
-        self.agent.log_info(f"✂️ SEVERED CONNECTION to {peer}!", event_type="topology_change", action="sever", target=peer)
+        """Cuts off a neighbor (removes from list and deletes trust data)."""
+        self.agent.log_info(f"✂️ SEVERING connection to {peer}!", event_type="topology_change", action="sever", target=peer)
         if peer in self.agent.neighbors:
             self.agent.neighbors.remove(peer)
         if peer in self.trust_scores:

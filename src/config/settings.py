@@ -44,7 +44,7 @@ class CoordinationSettings:
     MIN_TRUST_THRESHOLD = 0.0 # Floor
     MAX_TRUST_THRESHOLD = 1.0 # Ceiling
     SEVER_CONNECTION_THRESHOLD = 0.2
-    CONFIRMATION_THRESHOLD = 0.4 # Minimum trust to accept a confirmation
+    CONFIRMATION_THRESHOLD = 0.3 # Minimum trust to accept a confirmation
 
 class DataSettings:
     # Generator

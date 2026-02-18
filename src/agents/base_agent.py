@@ -10,10 +10,14 @@ class BaseAgent(Agent):
         self.logger = setup_logger(f"Agent-{self.agent_id}", self.agent_id)
 
     async def setup(self):
+        # This runs when the agent starts
         self.logger.info("Agent starting...")
 
     def log_info(self, message, **kwargs):
-        """Helper to log with extra JSON data"""
+        """
+        Easy way to log messages with extra data for the dashboard.
+        Example: self.log_info("Hello", value=42)
+        """
         self.logger.info(message, extra={"agent_id": self.agent_id, "custom_data": kwargs})
 
 

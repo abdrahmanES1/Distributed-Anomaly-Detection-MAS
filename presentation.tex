@@ -69,7 +69,7 @@
 % ===============================
 \title[Détection d'Anomalies MAS]{Détection d'Anomalies par Système Multi-Agents Distribué}
 \subtitle{Edge AI pour Réseaux IoT}
-\author[ESSEBYITY A. \& OUARIR H.]{Abderrahman ESSEBYITY \and Hamza OUARIR}
+\author[A. ESSEBYITY  \& H. OUARIR ]{Abderrahman ESSEBYITY \and Hamza OUARIR}
 \institute[Master SDA]{Master Science des Données et Analytique}
 \date{2025 -- 2026}
 
@@ -137,7 +137,7 @@
             \textbf{Approche Centralisée:}
             \begin{itemize}
                 \item[$-$] Surcharge réseau massive
-                \item[$-$] Latence élevée (RTT)
+                \item[$-$] Latence élevée
                 \item[$-$] Point de défaillance unique
                 \item[$-$] Coûts prohibitifs
             \end{itemize}
@@ -169,7 +169,7 @@
         Déployer des \textbf{Agents Intelligents} directement sur chaque capteur
     \end{block}
     
-    \vspace{0.5cm}
+    \vspace{0.3cm}
     
     \textbf{Les 3 Étapes du Système:}
     
@@ -182,10 +182,10 @@
         
         \vspace{0.2cm}
         
-        \item \textbf{Consensus Distribué}
+        \item \textbf{Validation par les Pairs}
         \begin{itemize}
             \item Vote majoritaire entre voisins
-            \item Réduction des faux positifs de \textbf{37\%}
+            \item Réduction des faux positifs 
         \end{itemize}
         
         \vspace{0.2cm}
@@ -202,9 +202,13 @@
 % SLIDE 3a: Topologie Réseau
 % ===============================
 \begin{frame}{Architecture du Système: Topologie}
-    \begin{figure}
+
+    
+    \begin{columns}[t]
+        \begin{column}{0.48\textwidth}
+                \begin{figure}
         \centering
-        \scalebox{0.6}{
+        \scalebox{0.8}{
         \begin{tikzpicture}[
             agent/.style={circle, draw=teal!70, line width=1.2pt, fill=teal!15, minimum size=1.1cm, font=\normalsize\sffamily\bfseries},
             coordinator/.style={circle, draw=orange!70, line width=1.5pt, fill=orange!20, minimum size=1.4cm, font=\large\sffamily\bfseries},
@@ -237,18 +241,6 @@
         \end{tikzpicture}
         }
     \end{figure}
-    
-    \begin{columns}[t]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Topologie Anneau}
-                {\small
-                \begin{itemize}
-                    \item 20 agents distribués
-                    \item 2 voisins par agent
-                    \item Communication locale
-                \end{itemize}
-                }
-            \end{block}
         \end{column}
         
         \begin{column}{0.48\textwidth}
@@ -258,6 +250,15 @@
                     \item Observateur passif
                     \item Collecte les alertes
                     \item Pas de contrôle central
+                \end{itemize}
+                }
+            \end{block}
+            \begin{block}{Topologie}
+                {\small
+                \begin{itemize}
+                    \item 20 agents distribués
+                    \item 2 voisins par agent
+                    \item Communication locale
                 \end{itemize}
                 }
             \end{block}
@@ -280,7 +281,7 @@
         % Components
         \node[component, fill=blue!15, draw=blue!60] (sensor) at (0,0) {1. Capteur IoT};
         \node[component, fill=green!15, draw=green!60] (ml) at (4.5,0) {2. ML en Ligne\\{\small River HST}};
-        \node[component, fill=purple!15, draw=purple!60] (consensus) at (9,0) {3. Consensus\\{\small Vote}};
+        \node[component, fill=purple!15, draw=purple!60] (consensus) at (9,0) {3. Validation\\{\small P2P}};
         \node[component, fill=red!15, draw=red!60] (trust) at (0,-3) {4. Confiance\\{\small Score}};
         
         % Arrows
@@ -294,9 +295,6 @@
     
     \vspace{0.4cm}
     
-    \begin{block}{Flux de Traitement Distribué}
-        Chaque agent exécute le pipeline complet de manière autonome: acquisition → détection → consensus → confiance
-    \end{block}
 \end{frame}
 
 % ===============================
@@ -309,7 +307,7 @@
             \begin{itemize}
                 \item \textbf{River Half-Space Trees}
                 \item Complexité O(1) en mémoire
-                \item Adaptation au concept drift
+            
                 \item Pas de réentraînement nécessaire
             \end{itemize}
             
@@ -325,7 +323,6 @@
             \begin{itemize}
                 \item \textbf{SPADE Framework} (XMPP)
                 \item Messages asynchrones
-                \item Latence < 200ms
             \end{itemize}
             
             \vspace{0.4cm}
@@ -340,66 +337,35 @@
     \end{columns}
 \end{frame}
 
-% ===============================
-% DÉMO SECTION (3 slides)
-% ===============================
-\begin{frame}{Dashboard ``War Room'' - Interface de Contrôle}
-    \begin{center}
-        {\LARGE\textbf{Démonstration Système}}
-    \end{center}
-    
-    \vspace{0.5cm}
-    
-    \begin{block}{Fonctionnalités du Dashboard}
-        \begin{itemize}
-            \item \textbf{Mission Control}: Démarrage/Arrêt simulations
-            \item \textbf{Topologie Live}: Graphe dynamique des connexions
-            \item \textbf{Fleet Status}: État de santé de 20 agents en temps réel
-            \item \textbf{Métriques}: Suivi de la précision et du recall en temps réel
-        \end{itemize}
-    \end{block}
-    
-    \vspace{0.5cm}
-    
-    \begin{center}
-        {\Large\textbf{URL:} \texttt{http://localhost:8501}}
-        
-        \vspace{0.4cm}
-        
-        \begin{alertblock}{Demo Live}
-            Lancement d'une simulation avec injection d'anomalies
-        \end{alertblock}
-    \end{center}
-\end{frame}
 
-\begin{frame}{Scénario de Démonstration}
-    \textbf{Étape 1: Initialisation (T+0s)}
-    \begin{itemize}
-        \item Déploiement automatique de 20 agents
-        \item Formation de la topologie mesh
-        \item Entraînement initial des modèles River
-    \end{itemize}
+% \begin{frame}{Scénario de Démonstration}
+%     \textbf{Étape 1: Initialisation (T+0s)}
+%     \begin{itemize}
+%         \item Déploiement automatique de 20 agents
+%         \item Formation de la topologie mesh
+%         \item Entraînement initial des modèles River
+%     \end{itemize}
     
-    \vspace{0.4cm}
+%     \vspace{0.4cm}
     
-    \textbf{Étape 2: Phase de Surveillance (T+10s)}
-    \begin{itemize}
-        \item Flux de données normal (non-anomalies)
-        \item Apprentissage continu des patterns normaux
-        \item Communication inter-agents active
-    \end{itemize}
+%     \textbf{Étape 2: Phase de Surveillance (T+10s)}
+%     \begin{itemize}
+%         \item Flux de données normal (non-anomalies)
+%         \item Apprentissage continu des patterns normaux
+%         \item Communication inter-agents active
+%     \end{itemize}
     
-    \vspace{0.4cm}
+%     \vspace{0.4cm}
     
-    \textbf{Étape 3: Injection d'Anomalies (T+30s)}
-    \begin{itemize}
-        \item Spike de valeurs sur plusieurs capteurs
-        \item Observation du processus de consensus
-        \item Validation de la détection collective
-    \end{itemize}
-\end{frame}
+%     \textbf{Étape 3: Injection d'Anomalies (T+30s)}
+%     \begin{itemize}
+%         \item Spike de valeurs sur plusieurs capteurs
+%         \item Observation du processus de consensus
+%         \item Validation de la détection collective
+%     \end{itemize}
+% \end{frame}
 
-\begin{frame}[fragile]{Processus de Consensus en Action}
+\begin{frame}[fragile]{Validation par les Pairs en Action}
     \begin{columns}[c]
         \begin{column}{0.55\textwidth}
             \begin{center}
@@ -448,7 +414,7 @@
             
             \vspace{0.2cm}
             
-            {\small Le consensus filtre le bruit local !}
+            {\small La validation filtre le bruit local !}
         \end{column}
     \end{columns}
 \end{frame}
@@ -456,38 +422,38 @@
 % ===============================
 % SLIDE 5: Résultats
 % ===============================
-\begin{frame}{Résultats Expérimentaux}
-    \begin{table}
-        \centering
-        \begin{tabular}{lcc}
-            \toprule
-            \textbf{Métrique} & \textbf{Valeur} & \textbf{Objectif} \\
-            \midrule
-            \textbf{Recall} (Anomalies majeures) & \textbf{91.2\%} & > 90\% \\
-            \textbf{Precision} & \textbf{62.4\%} & > 60\% \\
-            F1-Score & 0.743 & > 0.70 \\
-            \midrule
-            Latence consensus moyenne & < 200ms & < 500ms \\
-            Agents testés simultanément & 20 & 10+ \\
-            \textbf{Réduction faux positifs} & \textbf{-37\%} & > -30\% \\
-            \bottomrule
-        \end{tabular}
-    \end{table}
+% \begin{frame}{Résultats Expérimentaux}
+%     \begin{table}
+%         \centering
+%         \begin{tabular}{lcc}
+%             \toprule
+%             \textbf{Métrique} & \textbf{Valeur} & \textbf{Objectif} \\
+%             \midrule
+%             \textbf{Recall} (Anomalies majeures) & \textbf{91.2\%} & > 90\% \\
+%             \textbf{Precision} & \textbf{62.4\%} & > 60\% \\
+%             F1-Score & 0.743 & > 0.70 \\
+%             \midrule
+%             Latence consensus moyenne & < 200ms & < 500ms \\
+%             Agents testés simultanément & 20 & 10+ \\
+%             \textbf{Réduction faux positifs} & \textbf{-37\%} & > -30\% \\
+%             \bottomrule
+%         \end{tabular}
+%     \end{table}
     
-    \vspace{0.4cm}
+%     \vspace{0.4cm}
     
-    \begin{alertblock}{Résultat Clé}
-        Le consensus distribué améliore drastiquement la précision du système !
-    \end{alertblock}
-\end{frame}
+%     \begin{alertblock}{Résultat Clé}
+%         Le consensus distribué améliore drastiquement la précision du système !
+%     \end{alertblock}
+% \end{frame}
 
 % ===============================
 % SLIDE 6: Impact du Consensus
 % ===============================
-\begin{frame}{Impact du Consensus Distribué}
+\begin{frame}{Impact de la Validation Distribuée}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \textbf{Sans Consensus:}
+            \textbf{Sans Validation:}
             \begin{itemize}
                 \item Détection locale uniquement
                 \item Faux positifs élevés
@@ -503,10 +469,10 @@
         \end{column}
         
         \begin{column}{0.48\textwidth}
-            \textbf{Avec Consensus:}
+            \textbf{Avec Validation:}
             \begin{itemize}
                 \item Validation par les pairs
-                \item \textbf{-37\%} faux positifs
+                \item Réduction aux faux positifs
                 \item Robustesse au bruit
                 \item Haute confiance
             \end{itemize}
@@ -557,6 +523,22 @@
     \end{itemize}
 \end{frame}
 
+
+% ===============================
+% DÉMO SECTION (3 slides)
+% ===============================
+\begin{frame}{Dashboard - Interface de Contrôle}
+    \begin{center}
+        {\LARGE\textbf{Démonstration Système}}
+    \end{center}
+    
+    \vspace{0.5cm}
+    
+
+    
+    
+\end{frame}
+
 % ===============================
 % SLIDE 8: Conclusion
 % ===============================
@@ -565,7 +547,7 @@
     \begin{itemize}
         \item Système multi-agents \textbf{fully distributed} pour détection d'anomalies
         \item Apprentissage en ligne \textbf{O(1)} avec River
-        \item Consensus réduisant les faux positifs de \textbf{37\%}
+        \item Validation Pair-à-Pair réduisant les faux positifs 
         \item \textbf{Auto-réparation} validée expérimentalement
     \end{itemize}
     
@@ -574,7 +556,7 @@
     \textbf{Perspectives:}
     \begin{itemize}
         \item Déploiement sur edge devices réels (Raspberry Pi)
-        \item Algorithmes ML plus sophistiqués (Isolation Forest online)
+        \item Algorithmes ML plus sophistiqués
         \item Topologie dynamique avec découverte automatique
         \item Validation avec partenaires industriels
     \end{itemize}
@@ -597,7 +579,7 @@
     \begin{center}
         {\color{accent}\rule{0.4\textwidth}{0.12cm}}\\[0.9cm]
         {\Huge\bfseries\color{primary} Merci pour votre attention}\\[0.6cm]
-        {\Large\color{textcolor} Questions ?}\\[0.9cm]
+
         {\color{accent}\rule{0.4\textwidth}{0.12cm}}
     \end{center}
     

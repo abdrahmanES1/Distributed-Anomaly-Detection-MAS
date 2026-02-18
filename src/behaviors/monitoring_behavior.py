@@ -14,24 +14,25 @@ class MonitoringBehavior(CyclicBehaviour):
         self.last_injection_time = self.start_time
 
     async def run(self):
-        # Generate data
-        # Periodic Time-based injection every 30s
+        # 1. Get Data check for injection
+        # Every 30 seconds, we force an anomaly to test the system
         current_time = time.time()
         if (current_time - self.last_injection_time) > Settings.DATA.INJECTION_INTERVAL:
             data_point = self.generator.inject_anomaly(magnitude=Settings.DATA.INJECTION_MAGNITUDE)
-            self.agent.log_info(f"💉 INJECTING ANOMALY: {data_point:.2f}", event_type="injection", magnitude=Settings.DATA.INJECTION_MAGNITUDE, value=data_point)
+            self.agent.log_info(f"💉 FAKE ANOMALY INJECTED: {data_point:.2f}", event_type="injection", magnitude=Settings.DATA.INJECTION_MAGNITUDE, value=data_point)
             self.last_injection_time = current_time
         else:
+            # Normal data generation
             data_point = self.generator.next()
         
-        # Detect
+        # 2. Check for Anomalies
         self.is_anomaly, self.z_score = self.detector.update(data_point)
         
         if self.is_anomaly:
             self.last_anomaly_time = time.time()
-            self.agent.log_info("🚨 ML ANOMALY DETECTED!", event_type="detection", value=data_point, score=self.z_score)
+            self.agent.log_info("🚨 ANOMALY FOUND!", event_type="detection", value=data_point, score=self.z_score)
             
-            # Trigger coordination
+            # 3. Ask neighbors for help (start voting)
             if hasattr(self.agent, 'coordination'):
                  await self.agent.coordination.start_voting()
         else:

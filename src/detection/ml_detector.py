@@ -5,19 +5,18 @@ from river import preprocessing
 
 class MLDetector:
     def __init__(self):
-        # 3-Stage Pipeline:
-        # 1. StandardScaler: Normalizes data (Z-score) online so trees work on stable range.
-        # 2. HalfSpaceTrees: The actual anomaly detection forest.
-        # Tuned parameters:
-        # - n_trees: 10 (Lightweight)
-        # - height: 6 (Prevent recursion)
-        # - window_size: 250
+
+        # We use a 2-step pipeline for online learning:
+        # 1. StandardScaler: Normalizes data on the fly (so the model isn't confused by scale).
+        # 2. HalfSpaceTrees: The actual anomaly detection algorithm.
+        #    - Fast (O(1) update)
+        #    - Handles concept drift naturally
         self.model = compose.Pipeline(
             preprocessing.StandardScaler(),
             anomaly.HalfSpaceTrees(
-                n_trees=10,
-                height=6,
-                window_size=250,
+                n_trees=10,      # Keep it lightweight
+                height=6,        # Max depth for trees
+                window_size=250, # How much history to remember
                 seed=42
             )
         )
@@ -36,15 +35,15 @@ class MLDetector:
         # Pipeline expects dictionary
         record = {'val': value}
         
-        # 1. Score (Pipeline propagates dict -> Scaler -> HST)
+        # 1. Score: How weird is this new point?
         score = self.model.score_one(record)
         
-        # 2. Learn
+        # 2. Learn: Teach the model with this new point
         self.model.learn_one(record)
         
         self.counter += 1
         
-        # Warm-up period
+        # Give the model some time to learn before raising alarms
         if self.counter < self.learning_period:
             return False, 0.0
             
