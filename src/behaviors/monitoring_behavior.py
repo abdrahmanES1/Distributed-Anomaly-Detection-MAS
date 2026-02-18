@@ -27,12 +27,7 @@ class MonitoringBehavior(CyclicBehaviour):
         # Detect
         self.is_anomaly, self.z_score = self.detector.update(data_point)
         
-        if not self.detector.is_trained:
-             # Still training, just log occasionally
-             if self.generator.current_step % 10 == 0:
-                 self.agent.log_info(f"Warming up model... {self.detector.counter}/{self.detector.learning_period}")
-        
-        elif self.is_anomaly:
+        if self.is_anomaly:
             self.last_anomaly_time = time.time()
             self.agent.log_info("🚨 ML ANOMALY DETECTED!", event_type="detection", value=data_point, score=self.z_score)
             
@@ -42,5 +37,6 @@ class MonitoringBehavior(CyclicBehaviour):
         else:
             # self.agent.log_info(f"Normal: {data_point:.2f}")
             pass
+
             
         await asyncio.sleep(0.1)

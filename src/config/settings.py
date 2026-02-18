@@ -40,7 +40,7 @@ class CoordinationSettings:
     # Trust System
     INITIAL_TRUST = 0.5
     TRUST_REWARD = 0.05
-    TRUST_PENALTY = 0.1
+    TRUST_PENALTY = 0.03
     MIN_TRUST_THRESHOLD = 0.0 # Floor
     MAX_TRUST_THRESHOLD = 1.0 # Ceiling
     SEVER_CONNECTION_THRESHOLD = 0.2

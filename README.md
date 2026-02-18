@@ -30,24 +30,133 @@ Built-in fault tolerance testing.
 ## 🛠️ Quick Start Guide
 
 ### Prerequisites
-- Docker & Docker Compose
-- Python 3.9+
+Before starting, ensure you have the following installed:
+- **Docker** (version 20.10+) and **Docker Compose** (version 1.29+)
+- **Python** 3.9 or higher
+- **Git** (for cloning the repository)
+- At least 4GB of free RAM for running all services
 
-### 1. Start the Bridge Service
-Because the dashboard runs in Docker, it needs a helper script to launch simulations on your host.
-Run this **once** in a terminal and keep it open:
+### Installation Steps
+
+#### Step 1: Clone and Navigate to Project
+```bash
+git clone <repository-url>
+cd anomaly_detection_mas
+```
+
+#### Step 2: Build and Start Docker Services
+Build all Docker containers and start the infrastructure:
+```bash
+docker-compose up -d
+```
+
+This command will:
+- 🔧 Build the XMPP server (Prosody) for agent communication
+- 🔧 Build the agent_runner container for running experiments
+- 🔧 Build the dashboard container for visualization
+- 🚀 Start all services in detached mode
+
+**Verify services are running:**
+```bash
+docker-compose ps
+```
+
+You should see three services running: `prosody`, `agent_runner`, and `dashboard`.
+
+#### Step 3: Create Jobs Directory
+The job runner needs a directory to monitor job requests:
+```bash
+mkdir -p jobs
+```
+
+#### Step 4: Start the Job Runner Bridge
+The dashboard runs inside Docker, but it needs a bridge script on your host to execute simulation commands. Open a **new terminal** and run:
 ```bash
 python scripts/job_runner.py
 ```
 
-### 2. Launch the Dashboard
-Open your browser to:
+**Keep this terminal open!** You should see:
+```
+👀 JOB RUNNER STARTED. Monitoring 'jobs/request.json'...
+👉 Use the Dashboard 'Mission Control' to trigger actions.
+```
+
+#### Step 5: Access the Dashboard
+Open your browser and navigate to:
 👉 **[http://localhost:8501](http://localhost:8501)**
 
-### 3. Run a Simulation
+You should see the **War Room Dashboard** with mission control controls.
+
+### Running Simulations
+
+#### Option 1: Via Dashboard (Recommended)
 Use the **Sidebar Controls** on the dashboard:
-1.  **🟢 INITIALIZE SYSTEM**: Starts a standard 20-agent run.
-2.  **🔥 TRIGGER CHAOS MODE**: Starts a run where agents are killed at T+45s.
+1. **🟢 INITIALIZE SYSTEM**: Starts a standard 20-agent run (5-minute simulation)
+2. **🔥 TRIGGER CHAOS MODE**: Starts a run where 25% of agents are randomly killed at T+45s
+
+The dashboard will show:
+- Real-time topology graph
+- Agent status and health
+- Anomaly detection metrics
+- System performance statistics
+
+#### Option 2: Via Command Line
+You can also run experiments directly using Docker:
+
+**Standard Experiment:**
+```bash
+docker-compose run --rm agent_runner python scripts/run_experiment.py --agents 20 --duration 300
+```
+
+**Chaos Mode:**
+```bash
+docker-compose run --rm agent_runner python scripts/run_chaos.py --agents 20 --duration 300
+```
+
+**Custom Configuration:**
+```bash
+docker-compose run --rm agent_runner python scripts/run_experiment.py --agents 10 --duration 120
+```
+
+### Viewing Results
+After running a simulation, results are saved in:
+- **Logs**: `results/logs/agent_activity.jsonl` (real-time agent events)
+- **Metrics**: `results/logs/metrics_report.txt` (final performance report)
+
+### Stopping the System
+To stop all services:
+```bash
+# Stop the job runner (Ctrl+C in its terminal)
+
+# Stop Docker containers
+docker-compose down
+```
+
+To stop and remove all data:
+```bash
+docker-compose down -v
+```
+
+### Troubleshooting
+
+**Dashboard not loading?**
+- Check if port 8501 is available: `lsof -i :8501`
+- Verify dashboard container is running: `docker-compose ps`
+- Check dashboard logs: `docker-compose logs dashboard`
+
+**Job runner not executing commands?**
+- Ensure `jobs/` directory exists
+- Check file permissions on `jobs/request.json`
+- Verify Docker is running: `docker ps`
+
+**XMPP connection errors?**
+- Wait 10-15 seconds after `docker-compose up` for Prosody to fully start
+- Check Prosody logs: `docker-compose logs prosody`
+- Restart services: `docker-compose restart prosody`
+
+**Agents not communicating?**
+- Verify network is created: `docker network ls | grep mas_network`
+- Check agent_runner logs: `docker-compose logs agent_runner`
 
 ---
 

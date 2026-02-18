@@ -4,14 +4,11 @@ import json
 import time
 import os
 import altair as alt
-import networkx as nx
-from pyvis.network import Network
-import streamlit.components.v1 as components
 
 # Page Config
 st.set_page_config(
-    page_title="🛡️ MAS 'War Room'",
-    page_icon="🛡️",
+    page_title="MAS War Room",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -101,60 +98,23 @@ def load_data():
         df['timestamp'] = pd.to_datetime(df['timestamp'])
     return df
 
-def build_graph(df):
-    """Parses logs to build the current network topology."""
-    G = nx.Graph()
-    if df.empty:
-        return G
-        
-    # Find neighbor definitions
-    neighbor_logs = df[df['message'].str.contains("Neighbors set:", na=False)]
-    
-    for _, row in neighbor_logs.iterrows():
-        agent = row['agent_id']
-        try:
-            # Parse list string: "Neighbors set: ['sensor2@prosody', 'sensor3@prosody']"
-            msg = row['message']
-            neighbors_str = msg.split("Neighbors set: ")[1].replace("'", "").replace("[","").replace("]","")
-            neighbors = [n.strip().split('@')[0] for n in neighbors_str.split(",")]
-            
-            G.add_node(agent, title=agent, color="#00FFCC")
-            for n in neighbors:
-                G.add_node(n, title=n, color="#00FFCC")
-                G.add_edge(agent, n, color="#444")
-        except:
-            pass
-            
-    # Check for severed connections
-    sever_logs = df[df['action'] == 'sever']
-    for _, row in sever_logs.iterrows():
-        source = row['agent_id']
-        try:
-            target = row['peer'].split('@')[0]
-            if G.has_edge(source, target):
-                G.remove_edge(source, target)
-        except:
-            pass
-            
-    return G
-
 # --- MISSION CONTROL (SIDEBAR) ---
-st.sidebar.title("🚀 MISSION CONTROL")
+st.sidebar.title("MISSION CONTROL")
 st.sidebar.markdown("---")
 
-if st.sidebar.button("🟢 INITIALIZE SYSTEM (20 AGENTS)"):
+if st.sidebar.button("INITIALIZE SYSTEM (20 AGENTS)"):
     job = {"command": "start", "agents": 20, "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
     st.sidebar.success("CMD SENT: START SIMULATION")
 
-if st.sidebar.button("🔥 TRIGGER CHAOS MODE"):
+if st.sidebar.button("TRIGGER CHAOS MODE"):
     job = {"command": "chaos", "agents": 20, "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
     st.sidebar.warning("CMD SENT: UNLEASH CHAOS")
 
-if st.sidebar.button("🛑 EMERGENCY STOP"):
+if st.sidebar.button("EMERGENCY STOP"):
     job = {"command": "stop", "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
@@ -173,15 +133,13 @@ while True:
         st.subheader("SYSTEM TELEMETRY")
         
         if df.empty:
-            st.warning("⚠️ WAITING FOR TELEMETRY...")
+            st.warning("WAITING FOR TELEMETRY...")
             time.sleep(1)
             continue
             
         # --- TOP METRICS ---
         col1, col2, col3, col4 = st.columns(4)
         
-        # Calculate Active Agents (Seen in last 15 seconds)
-        # Handle timezone naive/aware if needed, but assuming simple comparison works or use max timestamp from df as reference
         if not df.empty:
             last_ts = df['timestamp'].max()
             recent_threshold = last_ts - pd.Timedelta(seconds=15)
@@ -199,68 +157,108 @@ while True:
         
         st.markdown("---")
         
-        # --- ROW 2: GRAPH & HEATMAP ---
-        c1, c2 = st.columns([3, 2])
+        # --- FLEET STATUS ---
+        st.subheader("FLEET STATUS")
         
-        with c1:
-            st.subheader("🌐 LIVE TOPOLOGY")
-            G = build_graph(df)
-            if not nx.is_empty(G):
-                net = Network(height="500px", width="100%", bgcolor="#161B22", font_color="white")
-                net.from_nx(G)
-                # Physics options for stability
-                net.set_options("""
-                var options = {
-                  "physics": {
-                    "hierarchicalRepulsion": { "nodeDistance": 150 },
-                     "stabilization": { "iterations": 100 }
-                  }
-                }
-                """)
-                net.save_graph("graph.html")
-                with open("graph.html", 'r', encoding='utf-8') as f:
-                    source_code = f.read()
-                components.html(source_code, height=500)
+        # Get latest status per agent
+        latest = df.sort_values('timestamp').groupby('agent_id').tail(1).copy()
+        
+        # Calculate trust scores from voting behavior
+        trust_data = {}
+        for agent_id in df['agent_id'].unique():
+            if agent_id in ['system', 'coordinator']: continue
+            agent_votes = df[(df['agent_id'] == agent_id) & (df['event_type'] == 'voting_response')]
+            agrees = len(agent_votes[agent_votes['vote'] == 'AGREE'])
+            disagrees = len(agent_votes[agent_votes['vote'] == 'DISAGREE'])
+            total_votes = agrees + disagrees
+            
+            if total_votes > 0:
+                trust_score = 0.5 + (agrees * 0.05) - (disagrees * 0.1)
+                trust_score = max(0.0, min(1.0, trust_score))
+                trust_data[agent_id] = trust_score
             else:
-                st.info("Waiting for topology data...")
-
-        with c2:
-            st.subheader("🤖 FLEET STATUS")
-            # Get latest status
-            latest = df.sort_values('timestamp').groupby('agent_id').tail(1).copy()
+                trust_data[agent_id] = 0.5
+        
+        # Build status table with trust scores
+        status_data = []
+        for _, row in latest.iterrows():
+            agent = row['agent_id']
+            if agent in ['system', 'coordinator']: continue
             
-            # Prepare data for clean table
-            status_data = []
-            for _, row in latest.iterrows():
-                agent = row['agent_id']
-                if agent in ['system', 'coordinator']: continue
-                
-                msg = str(row['message'])
-                is_dead = "KILLED" in msg
-                is_alert = "ANOMALY" in msg or "DETECTED" in msg
-                
-                status = "🔴 DEAD" if is_dead else ("🟠 ALERT" if is_alert else "🟢 ACTIVE")
-                last_msg = msg[:40] + "..." if len(msg) > 40 else msg
-                
-                status_data.append({
-                    "Agent": agent,
-                    "Status": status,
-                    "Last Log": last_msg
-                })
+            msg = str(row['message'])
+            is_dead = "KILLED" in msg
+            is_alert = "ANOMALY" in msg or "DETECTED" in msg
             
-            if status_data:
-                st.dataframe(
-                    pd.DataFrame(status_data).set_index("Agent"),
-                    use_container_width=True,
-                    height=500
-                )
+            status = "DEAD" if is_dead else ("ALERT" if is_alert else "ACTIVE")
+            last_msg = msg[:30] + "..." if len(msg) > 30 else msg
+            
+            trust = trust_data.get(agent, 0.5)
+            
+            status_data.append({
+                "Agent": agent,
+                "Status": status,
+                "Trust": f"{trust:.2f}",
+                "Last Log": last_msg
+            })
+        
+        if status_data:
+            st.dataframe(
+                pd.DataFrame(status_data).set_index("Agent"),
+                use_container_width=True,
+                height=400
+            )
 
         st.markdown("---")
         
-        # --- ROW 3: CHARTS ---
+        # --- AGENT TRUST SCORES ---
+        st.subheader("AGENT TRUST SCORES")
+        
+        trust_chart_data = []
+        for agent_id in df['agent_id'].unique():
+            if agent_id in ['system', 'coordinator']: continue
+            agent_votes = df[(df['agent_id'] == agent_id) & (df['event_type'] == 'voting_response')]
+            agrees = len(agent_votes[agent_votes['vote'] == 'AGREE'])
+            disagrees = len(agent_votes[agent_votes['vote'] == 'DISAGREE'])
+            total_votes = agrees + disagrees
+            
+            if total_votes > 0:
+                trust_score = 0.5 + (agrees * 0.05) - (disagrees * 0.1)
+                trust_score = max(0.0, min(1.0, trust_score))
+            else:
+                trust_score = 0.5
+                
+            trust_chart_data.append({
+                'Agent': agent_id,
+                'Trust Score': trust_score,
+                'Votes': total_votes
+            })
+        
+        if trust_chart_data:
+            trust_df = pd.DataFrame(trust_chart_data)
+            
+            chart = alt.Chart(trust_df).mark_bar().encode(
+                x=alt.X('Agent:N', sort='-y'),
+                y=alt.Y('Trust Score:Q', scale=alt.Scale(domain=[0, 1])),
+                color=alt.Color('Trust Score:Q', 
+                    scale=alt.Scale(
+                        domain=[0, 0.4, 0.7, 1],
+                        range=['#F85149', '#FFA657', '#3FB950', '#00FF88']
+                    ),
+                    legend=None
+                ),
+                tooltip=['Agent', 'Trust Score', 'Votes']
+            ).properties(height=200)
+            
+            st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info("No trust data available yet. Trust scores build up as agents vote on anomalies.")
+        
+        st.markdown("---")
+        
+        # --- CHARTS ---
         c3, c4 = st.columns(2)
         with c3:
-            st.subheader("📈 ANOMALY SIGNALS")
+            st.subheader("ANOMALY SIGNALS")
             detections = df[df['event_type'].isin(['detection', 'injection'])].copy()
             if not detections.empty:
                 chart = alt.Chart(detections).mark_circle(size=80).encode(
@@ -270,9 +268,11 @@ while True:
                     tooltip=['agent_id', 'value', 'score']
                 ).properties(height=300)
                 st.altair_chart(chart, use_container_width=True)
+            else:
+                st.info("No anomalies detected yet. Waiting for ML detections or injections...")
                 
         with c4:
-            st.subheader("📜 LIVE LOGS")
+            st.subheader("LIVE LOGS")
             st.dataframe(
                 df[['timestamp', 'agent_id', 'message']].sort_values('timestamp', ascending=False).head(50),
                 use_container_width=True,
