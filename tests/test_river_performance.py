@@ -8,17 +8,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.detection.ml_detector import MLDetector
 
 def test_performance():
-    print("🚀 Starting River Performance Test...")
+    print("Starting River Performance Test...")
     
     # 1. Test Initialization Time
     start_init = time.time()
     detector = MLDetector()
     end_init = time.time()
     init_time = end_init - start_init
-    print(f"✅ Initialization Time: {init_time:.4f}s")
+    print(f"Initialization Time: {init_time:.4f}s")
     
     if init_time > 1.0:
-        print("❌ Initialization too slow (>1.0s)!")
+        print("Initialization too slow (>1.0s)!")
         return
         
     # 2. Test Processing Speed (10 points - Debug Mode)
@@ -34,13 +34,13 @@ def test_performance():
     
     total_time = end_proc - start_proc
     avg_time = total_time / 1000
-    print(f"✅ Total Processing Time: {total_time:.4f}s")
+    print(f"Total Processing Time: {total_time:.4f}s")
     print(f"⚡ Average Time per Point: {avg_time*1000:.4f}ms")
     
     if avg_time > 0.01: # 10ms
-        print("❌ Processing too slow (>10ms per point)!")
+        print("Processing too slow (>10ms per point)!")
     else:
-        print("✅ Performance Requirement Met (<10ms)")
+        print("Performance Requirement Met (<10ms)")
 
     # 3. Test Accuracy (Basic)
     print("Testing Anomaly Detection...")
@@ -50,7 +50,7 @@ def test_performance():
     print(f"Input: {anomaly_val}, Is Anomaly: {is_anomaly}, Score: {score}")
     
     if is_anomaly:
-        print("✅ Detection Logic Works")
+        print("Detection Logic Works")
     else:
         print("⚠️ Warning: Did not detect obvious anomaly (might need more training or tuning)")
 

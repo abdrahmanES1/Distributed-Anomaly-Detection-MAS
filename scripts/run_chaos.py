@@ -20,6 +20,9 @@ async def main(num_agents, duration):
     print(f"🚀 Starting CHAOS Mode with {num_agents} agents for {duration} seconds...")
     print("🔥 Agents will be terminated randomly during execution!")
     
+    from src.config.settings import Settings
+    Settings.SYSTEM.TOTAL_AGENTS = num_agents
+    
     # 1. Start Coordinator
     coordinator = CoordinatorAgent(f"coordinator@{XMPP_SERVER}", "password")
     await coordinator.start()

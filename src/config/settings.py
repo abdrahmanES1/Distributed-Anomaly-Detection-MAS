@@ -1,9 +1,9 @@
-
 class SystemSettings:
     LOG_PATH = "results/logs/agent_activity.jsonl"
     METRICS_PATH = "results/metrics/experiment_results.json"
     LOG_DIR = "results/logs"
     METRICS_DIR = "results/metrics"
+    TOTAL_AGENTS = 20 # Can be overridden by runner scripts
 
 class AgentSettings:
     # Sensor Agent

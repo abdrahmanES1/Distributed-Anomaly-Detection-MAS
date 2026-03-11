@@ -73,7 +73,7 @@ class CoordinationBehavior(CyclicBehaviour):
         )
         self.active_sessions[session_id] = session
         
-        self.agent.log_info(f"🗳️ Starting voting session {session_id[:8]}...", event_type="voting_start")
+        self.agent.log_info(f"Starting voting session {session_id[:8]}...", event_type="voting_start")
         
         # 2. Ask all neighbors: "Do you see this too?"
         for neighbor in neighbors:
@@ -117,7 +117,7 @@ class CoordinationBehavior(CyclicBehaviour):
         if msg.get_metadata("ontology") == ONTOLOGY_COORDINATION:
             payload = decode_message(msg.body)
             if not payload:
-                self.agent.log_info("❌ Failed to decode message body", event_type="error")
+                self.agent.log_info("Failed to decode message body", event_type="error")
                 return
 
             if payload.type == "QUERY":
@@ -146,42 +146,36 @@ class CoordinationBehavior(CyclicBehaviour):
                 dead.append(n)
         
         for d in dead:
-            self.agent.log_info(f"💀 Neighbor {d} died (Timeout). Removing.", event_type="prune", target=d)
+            self.agent.log_info(f"Neighbor {d} died (Timeout). Removing.", event_type="prune", target=d)
             self._sever_connection(d) 
             if d in self.last_seen:
                 del self.last_seen[d]
 
     async def handle_query(self, msg: Message, payload: object):
         """
-        Another agent asked: "Is this an anomaly?"
+        Another agent asked: "I have a voltage surge! Do you see it too?"
         We check our own recent history to answer.
         """
         is_anomaly = False
         if hasattr(self.agent, 'monitoring'):
-             # Did we see an anomaly recently? (e.g., last 3 seconds)
+             # Did we see a voltage surge recently? (e.g., last 3 seconds)
              last_time = getattr(self.agent.monitoring, 'last_anomaly_time', 0)
              if (time.time() - last_time) < Settings.COORDINATION.ANOMALY_WINDOW_SECONDS:
                  is_anomaly = True
         
-        # Determine our vote
+        # Determine our vote: "AGREE" means we see it too (Grid-Wide). "DISAGREE" means we don't (Local).
         response_content = "AGREE" if is_anomaly else "DISAGREE"
         
-        # Trust Logic: If they are wrong (False Alarm), we trust them less.
-        if not is_anomaly:
-             sender = str(msg.sender)
-             self._update_trust(sender, -Settings.COORDINATION.TRUST_PENALTY)
-             
-             # If trust drops too low, cut them off!
-             if self.trust_scores.get(sender, 0.5) < Settings.COORDINATION.SEVER_CONNECTION_THRESHOLD:
-                 self._sever_connection(sender)
+        # IMPORTANT: We no longer penalize them for a "DISAGREE" vote!
+        # A localized anomaly (e.g. tree on a line) is valid even if neighbors don't see it.
+        # We ONLY penalize if they are actively trying to deceive the network (e.g. claiming to be dead but sending msgs)
         
         reply = create_reply_message(msg, payload.session_id, response_content)
         await self.send(reply)
 
     async def handle_vote(self, msg: Message, payload: object):
         """
-        Received a vote ("AGREE" or "DISAGREE") from a neighbor.
-        Only processes votes for sessions WE started.
+        Received a vote ("AGREE" or "DISAGREE") from a neighbor regarding our voltage surge.
         """
         session_id = payload.session_id
         
@@ -203,15 +197,20 @@ class CoordinationBehavior(CyclicBehaviour):
             
         if vote == "AGREE":
             session.agreements += 1
-            # They agreed with us -> Trust increases
+            # They agreed with us -> This is a Grid-Wide Surge! Trust increases
             self._update_trust(sender, Settings.COORDINATION.TRUST_REWARD)
             
-            # If trusted neighbor agrees, we confirm the anomaly!
+            # If trusted neighbor agrees, we escalate to a Grid-Wide Alert!
             if trust > Settings.COORDINATION.CONFIRMATION_THRESHOLD:
-                self.agent.log_info(f"✅ CONFIRMATION: {sender} agrees!", event_type="consensus_reached", peer=sender)
+                self.agent.log_info(f"ESCALATION: {sender} agrees! GRID-WIDE SURGE DETECTED!", event_type="consensus_reached", peer=sender)
                 session.is_active = False 
         else:
             session.disagreements += 1
+            # They disagreed -> It's a localized event. No trust penalty applied.
+            self.agent.log_info(f"LOCAL: Neighbors disagree. Surge is isolated to local sector.", event_type="local_anomaly_confirmed")
+            
+            # Note: We do NOT penalize trust here. Local anomalies are normal in a Smart Grid (e.g. local faults).
+            # The session remains active until timeout or consensus is reached.
 
     def _update_trust(self, peer: str, delta: float):
         """Adjusts trust score securely (clamps between 0.0 and 1.0)."""
@@ -227,7 +226,7 @@ class CoordinationBehavior(CyclicBehaviour):
 
     def _sever_connection(self, peer: str):
         """Cuts off a neighbor (removes from list and deletes trust data)."""
-        self.agent.log_info(f"✂️ SEVERING connection to {peer}!", event_type="topology_change", action="sever", target=peer)
+        self.agent.log_info(f"SEVERING connection to {peer}!", event_type="topology_change", action="sever", target=peer)
         if peer in self.agent.neighbors:
             self.agent.neighbors.remove(peer)
         if peer in self.trust_scores:

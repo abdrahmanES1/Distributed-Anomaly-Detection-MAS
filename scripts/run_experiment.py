@@ -17,6 +17,8 @@ async def main(num_agents, duration):
         open(log_path, 'w').close()
 
     print(f"🚀 Starting Multi-Agent System with {num_agents} agents for {duration} seconds...")
+    from src.config.settings import Settings
+    Settings.SYSTEM.TOTAL_AGENTS = num_agents
     
     # 1. Start Coordinator
     coordinator = CoordinatorAgent(f"coordinator@{XMPP_SERVER}", "password")

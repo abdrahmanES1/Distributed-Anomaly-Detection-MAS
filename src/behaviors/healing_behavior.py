@@ -20,15 +20,17 @@ class HealingBehavior(CyclicBehaviour):
             if my_id_match:
                 my_num = int(my_id_match.group(1))
                 
+                from src.config.settings import Settings
+                
                 # Scan FULL RING to find a friend (Max robustness)
-                # If we limit to 5, a gap of 6 kills the ring.
-                # Scanning 1..19 ensures we find anyone alive.
-                for offset in range(1, 25): 
+                total_agents = Settings.SYSTEM.TOTAL_AGENTS
+                
+                # Scanning up to total_agents ensures we find anyone alive in the ring
+                for offset in range(1, total_agents + 1): 
                     target_num = my_num + offset
-                    # Wrap around 20 (assuming max 20 agents for this demo)
-                    # We can use modulo, but specific logic for 1-based indexing:
-                    while target_num > 20: 
-                        target_num -= 20
+                    # Wrap around dynamically
+                    while target_num > total_agents: 
+                        target_num -= total_agents
                         
                     if target_num == my_num: continue
                     

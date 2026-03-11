@@ -7,8 +7,8 @@ import altair as alt
 
 # Page Config
 st.set_page_config(
-    page_title="MAS War Room",
-    page_icon="",
+    page_title="Smart Grid Telemetry",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -99,26 +99,26 @@ def load_data():
     return df
 
 # --- MISSION CONTROL (SIDEBAR) ---
-st.sidebar.title("MISSION CONTROL")
+st.sidebar.title("GRID CONTROL")
 st.sidebar.markdown("---")
 
-if st.sidebar.button("INITIALIZE SYSTEM (20 AGENTS)"):
+if st.sidebar.button("INITIALIZE GRID MONITORING (20 Nodes)"):
     job = {"command": "start", "agents": 20, "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
-    st.sidebar.success("CMD SENT: START SIMULATION")
+    st.sidebar.success("CMD SENT: START GRID MONITOR")
 
-if st.sidebar.button("TRIGGER CHAOS MODE"):
+if st.sidebar.button("SIMULATE GRID FAILURE (STORM)"):
     job = {"command": "chaos", "agents": 20, "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
-    st.sidebar.warning("CMD SENT: UNLEASH CHAOS")
+    st.sidebar.warning("CMD SENT: STORM SCENARIO")
 
-if st.sidebar.button("EMERGENCY STOP"):
+if st.sidebar.button("EMERGENCY SHUTDOWN"):
     job = {"command": "stop", "timestamp": time.time()}
     with open("/app/jobs/request.json", "w") as f:
         json.dump(job, f)
-    st.sidebar.error("CMD SENT: STOP SYSTEM")
+    st.sidebar.error("CMD SENT: STOP GRID")
 
 st.sidebar.markdown("---")
 st.sidebar.info("Ensure 'job_runner.py' is running on the host!")
@@ -130,7 +130,7 @@ while True:
     df = load_data()
     
     with placeholder.container():
-        st.subheader("SYSTEM TELEMETRY")
+        st.subheader("SMART GRID TELEMETRY")
         
         if df.empty:
             st.warning("WAITING FOR TELEMETRY...")
@@ -150,15 +150,15 @@ while True:
         anomalies = df[df['event_type'] == 'detection'].shape[0]
         votes = df[df['event_type'] == 'voting_response'].shape[0]
         
-        col1.metric("ONLINE AGENTS", active_agents)
-        col2.metric("ANOMALIES", anomalies, delta_color="inverse")
-        col3.metric("VOTES CAST", votes)
-        col4.metric("SYSTEM STATUS", "OPERATIONAL" if anomalies < 10 else "ALERT")
+        col1.metric("ACTIVE TRANSFORMERS", active_agents)
+        col2.metric("VOLTAGE ANOMALIES", anomalies, delta_color="inverse")
+        col3.metric("CONSENSUS VOTES", votes)
+        col4.metric("GRID STATUS", "NOMINAL" if anomalies < 10 else "CRITICAL")
         
         st.markdown("---")
         
         # --- FLEET STATUS ---
-        st.subheader("FLEET STATUS")
+        st.subheader("ACTIVE SECTOR TRANSFORMERS")
         
         # Get latest status per agent
         latest = df.sort_values('timestamp').groupby('agent_id').tail(1).copy()
@@ -169,11 +169,11 @@ while True:
             if agent_id in ['system', 'coordinator']: continue
             agent_votes = df[(df['agent_id'] == agent_id) & (df['event_type'] == 'voting_response')]
             agrees = len(agent_votes[agent_votes['vote'] == 'AGREE'])
-            disagrees = len(agent_votes[agent_votes['vote'] == 'DISAGREE'])
-            total_votes = agrees + disagrees
+            # We no longer penalize DISAGREE votes visually, matching the backend localized fault logic
+            total_votes = len(agent_votes)
             
             if total_votes > 0:
-                trust_score = 0.5 + (agrees * 0.05) - (disagrees * 0.1)
+                trust_score = 0.5 + (agrees * 0.05) 
                 trust_score = max(0.0, min(1.0, trust_score))
                 trust_data[agent_id] = trust_score
             else:
@@ -211,18 +211,17 @@ while True:
         st.markdown("---")
         
         # --- AGENT TRUST SCORES ---
-        st.subheader("AGENT TRUST SCORES")
+        st.subheader("NODE RELIABILITY SCORES")
         
         trust_chart_data = []
         for agent_id in df['agent_id'].unique():
             if agent_id in ['system', 'coordinator']: continue
             agent_votes = df[(df['agent_id'] == agent_id) & (df['event_type'] == 'voting_response')]
             agrees = len(agent_votes[agent_votes['vote'] == 'AGREE'])
-            disagrees = len(agent_votes[agent_votes['vote'] == 'DISAGREE'])
-            total_votes = agrees + disagrees
+            total_votes = len(agent_votes)
             
             if total_votes > 0:
-                trust_score = 0.5 + (agrees * 0.05) - (disagrees * 0.1)
+                trust_score = 0.5 + (agrees * 0.05)
                 trust_score = max(0.0, min(1.0, trust_score))
             else:
                 trust_score = 0.5
@@ -258,7 +257,7 @@ while True:
         # --- CHARTS ---
         c3, c4 = st.columns(2)
         with c3:
-            st.subheader("ANOMALY SIGNALS")
+            st.subheader("VOLTAGE ANOMALY SIGNALS (V)")
             detections = df[df['event_type'].isin(['detection', 'injection'])].copy()
             if not detections.empty:
                 chart = alt.Chart(detections).mark_circle(size=80).encode(
